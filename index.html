@@ -3,308 +3,415 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>五子棋</title>
+<title>五子棋 AI 对战</title>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #1a1a2e;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
-    color: #eee;
-  }
-  h1 {
-    font-size: 2rem;
-    margin-bottom: 12px;
-    letter-spacing: 6px;
-    color: #e2b96f;
-    text-shadow: 0 0 20px rgba(226,185,111,0.4);
-  }
-  #status {
-    font-size: 1.1rem;
-    margin-bottom: 14px;
-    height: 28px;
-    color: #ccc;
-  }
-  #status .highlight { color: #e2b96f; font-weight: bold; }
-  #board-wrap {
-    position: relative;
-    background: #c8a96e;
-    border-radius: 8px;
-    padding: 24px;
-    box-shadow: 0 8px 40px rgba(0,0,0,0.6);
-  }
-  canvas { display: block; cursor: crosshair; border-radius: 4px; }
-  #controls {
-    margin-top: 16px;
-    display: flex;
-    gap: 12px;
-  }
-  button {
-    padding: 8px 24px;
-    border: none;
-    border-radius: 6px;
-    font-size: 0.95rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-  }
-  #btn-restart {
-    background: #e2b96f;
-    color: #1a1a2e;
-    font-weight: bold;
-  }
-  #btn-restart:hover { background: #f0cc88; transform: translateY(-1px); }
-  #btn-undo {
-    background: #3a3a5c;
-    color: #ccc;
-    border: 1px solid #555;
-  }
-  #btn-undo:hover { background: #4a4a6c; transform: translateY(-1px); }
-  #score {
-    display: flex;
-    gap: 32px;
-    margin-bottom: 14px;
-    font-size: 0.95rem;
-  }
-  .score-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .stone-icon {
-    width: 18px; height: 18px;
-    border-radius: 50%;
-    display: inline-block;
-  }
-  .black-icon { background: radial-gradient(circle at 35% 35%, #666, #000); }
-  .white-icon { background: radial-gradient(circle at 35% 35%, #fff, #aaa); border: 1px solid #999; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background:#1a1a2e;
+  display:flex; flex-direction:column; align-items:center; justify-content:center;
+  min-height:100vh;
+  font-family:'PingFang SC','Microsoft YaHei',sans-serif;
+  color:#eee;
+  padding:16px;
+}
+h1 { font-size:1.8rem; margin-bottom:10px; letter-spacing:6px; color:#e2b96f; text-shadow:0 0 20px rgba(226,185,111,.4); }
+
+#mode-bar {
+  display:flex; gap:8px; margin-bottom:10px; align-items:center;
+}
+.mode-btn {
+  padding:6px 16px; border-radius:20px; border:1px solid #555; background:#2a2a4a;
+  color:#aaa; cursor:pointer; font-size:.85rem; transition:all .2s; font-family:inherit;
+}
+.mode-btn.active { background:#e2b96f; color:#1a1a2e; border-color:#e2b96f; font-weight:bold; }
+
+#status {
+  font-size:1rem; margin-bottom:10px; height:26px; color:#ccc;
+}
+.hl { color:#e2b96f; font-weight:bold; }
+.thinking { color:#7ec8e3; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+#board-wrap {
+  background:#c8a96e; border-radius:8px; padding:18px;
+  box-shadow:0 8px 40px rgba(0,0,0,.6);
+  position:relative;
+}
+canvas { display:block; cursor:crosshair; border-radius:4px; }
+canvas.disabled { cursor:not-allowed; }
+
+#score {
+  display:flex; gap:28px; margin-bottom:10px; font-size:.9rem;
+}
+.sc { display:flex; align-items:center; gap:6px; }
+.stone-icon { width:16px;height:16px;border-radius:50%; display:inline-block; }
+.bi { background:radial-gradient(circle at 35% 35%,#666,#111); }
+.wi { background:radial-gradient(circle at 35% 35%,#fff,#aaa); border:1px solid #999; }
+
+#controls { margin-top:12px; display:flex; gap:10px; }
+button {
+  padding:7px 20px; border:none; border-radius:6px; font-size:.9rem;
+  cursor:pointer; transition:all .2s; font-family:inherit;
+}
+#btn-restart { background:#e2b96f; color:#1a1a2e; font-weight:bold; }
+#btn-restart:hover { background:#f0cc88; transform:translateY(-1px); }
+#btn-undo { background:#3a3a5c; color:#ccc; border:1px solid #555; }
+#btn-undo:hover { background:#4a4a6c; transform:translateY(-1px); }
+
+#diff-wrap { display:flex; align-items:center; gap:6px; font-size:.85rem; color:#aaa; }
+#diff-wrap select {
+  background:#2a2a4a; color:#eee; border:1px solid #555; border-radius:4px;
+  padding:4px 8px; font-family:inherit; font-size:.85rem; cursor:pointer;
+}
 </style>
 </head>
 <body>
 <h1>五 子 棋</h1>
-<div id="score">
-  <div class="score-item">
-    <span class="stone-icon black-icon"></span>
-    <span>黑棋：<strong id="score-black">0</strong> 胜</span>
-  </div>
-  <div class="score-item">
-    <span class="stone-icon white-icon"></span>
-    <span>白棋：<strong id="score-white">0</strong> 胜</span>
-  </div>
+
+<div id="mode-bar">
+  <button class="mode-btn active" id="btn-pvp">👥 双人对战</button>
+  <button class="mode-btn" id="btn-pve-b">🤖 我执黑 vs AI</button>
+  <button class="mode-btn" id="btn-pve-w">🤖 AI vs 我执白</button>
 </div>
-<div id="status"><span class="highlight">黑棋</span> 先行</div>
+
+<div id="score">
+  <div class="sc"><span class="stone-icon bi"></span><span>黑：<strong id="sb">0</strong></span></div>
+  <div class="sc"><span class="stone-icon wi"></span><span>白：<strong id="sw">0</strong></span></div>
+  <div id="diff-wrap">难度：<select id="diff"><option value="easy">简单</option><option value="hard" selected>困难</option></select></div>
+</div>
+
+<div id="status"><span class="hl">黑棋</span> 先行</div>
 <div id="board-wrap">
-  <canvas id="board" width="480" height="480"></canvas>
+  <canvas id="board" width="450" height="450"></canvas>
 </div>
 <div id="controls">
   <button id="btn-undo">↩ 悔棋</button>
-  <button id="btn-restart">🔄 重新开始</button>
+  <button id="btn-restart">🔄 重开</button>
 </div>
 
 <script>
-const SIZE = 15;
-const CELL = 30;
-const PAD = 15;
-const canvas = document.getElementById('board');
-const ctx = canvas.getContext('2d');
-const statusEl = document.getElementById('status');
-const scoreBlack = document.getElementById('score-black');
-const scoreWhite = document.getElementById('score-white');
+const SIZE=15, CELL=30, PAD=15;
+const canvas=document.getElementById('board');
+const ctx=canvas.getContext('2d');
+const statusEl=document.getElementById('status');
+const sbEl=document.getElementById('sb');
+const swEl=document.getElementById('sw');
 
-let board, current, history, gameOver, scores;
+let board,current,history,gameOver,scores,mode,aiColor,aiThinking;
+// mode: 'pvp' | 'pve'
+// aiColor: 1(black) | 2(white)
 
-function init() {
-  board = Array.from({length: SIZE}, () => Array(SIZE).fill(0));
-  current = 1; // 1=black, 2=white
-  history = [];
-  gameOver = false;
-  if (!scores) scores = {1: 0, 2: 0};
+function init(){
+  board=Array.from({length:SIZE},()=>Array(SIZE).fill(0));
+  current=1; history=[]; gameOver=false; aiThinking=false;
+  if(!scores) scores={1:0,2:0};
+  canvas.classList.remove('disabled');
   updateStatus();
   draw();
+  // If AI goes first
+  if(mode==='pve' && aiColor===1) setTimeout(aiMove,300);
 }
 
-function updateStatus(winner) {
-  if (winner) {
-    const name = winner === 1 ? '<span class="highlight">黑棋</span>' : '<span class="highlight">白棋</span>';
-    statusEl.innerHTML = `🎉 ${name} 获胜！`;
-  } else if (gameOver) {
-    statusEl.innerHTML = '平局！棋盘已满';
+// ─── Mode buttons ───
+document.getElementById('btn-pvp').onclick=()=>{ setMode('pvp'); };
+document.getElementById('btn-pve-b').onclick=()=>{ setMode('pve',2); }; // player=black, ai=white
+document.getElementById('btn-pve-w').onclick=()=>{ setMode('pve',1); }; // player=white, ai=black
+
+function setMode(m, aiC=2){
+  mode=m; aiColor=aiC;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  if(m==='pvp') document.getElementById('btn-pvp').classList.add('active');
+  else if(aiC===2) document.getElementById('btn-pve-b').classList.add('active');
+  else document.getElementById('btn-pve-w').classList.add('active');
+  init();
+}
+
+function updateStatus(winner){
+  if(winner){
+    const nm=winner===1?'<span class="hl">黑棋</span>':'<span class="hl">白棋</span>';
+    const who=(mode==='pve'&&winner===aiColor)?` 🤖 AI 赢了！`:``;
+    statusEl.innerHTML=`🎉 ${nm} 获胜${who}`;
+  } else if(gameOver){
+    statusEl.innerHTML='平局！棋盘已满';
+  } else if(aiThinking){
+    statusEl.innerHTML='<span class="thinking">🤖 AI 思考中...</span>';
   } else {
-    const name = current === 1 ? '<span class="highlight">黑棋</span>' : '<span class="highlight">白棋</span>';
-    statusEl.innerHTML = `${name} 落子`;
+    const nm=current===1?'<span class="hl">黑棋</span>':'<span class="hl">白棋</span>';
+    const isAi=(mode==='pve'&&current===aiColor);
+    statusEl.innerHTML=isAi?`<span class="thinking">🤖 AI 落子中...</span>`:`${nm} 落子`;
   }
-  scoreBlack.textContent = scores[1];
-  scoreWhite.textContent = scores[2];
+  sbEl.textContent=scores[1]; swEl.textContent=scores[2];
 }
 
-function pos(i) { return PAD + i * CELL; }
+// ─── Canvas helpers ───
+function pos(i){ return PAD+i*CELL; }
 
-function draw() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+function draw(){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
   // Grid
-  ctx.strokeStyle = '#8b6914';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < SIZE; i++) {
-    ctx.beginPath(); ctx.moveTo(pos(i), pos(0)); ctx.lineTo(pos(i), pos(SIZE-1)); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(pos(0), pos(i)); ctx.lineTo(pos(SIZE-1), pos(i)); ctx.stroke();
+  ctx.strokeStyle='#8b6914'; ctx.lineWidth=1;
+  for(let i=0;i<SIZE;i++){
+    ctx.beginPath(); ctx.moveTo(pos(i),pos(0)); ctx.lineTo(pos(i),pos(SIZE-1)); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(pos(0),pos(i)); ctx.lineTo(pos(SIZE-1),pos(i)); ctx.stroke();
   }
-
-  // Star points
-  ctx.fillStyle = '#8b6914';
-  const stars = [[3,3],[3,11],[11,3],[11,11],[7,7]];
-  stars.forEach(([r,c]) => {
-    ctx.beginPath(); ctx.arc(pos(c), pos(r), 3, 0, Math.PI*2); ctx.fill();
+  // Stars
+  ctx.fillStyle='#8b6914';
+  [[3,3],[3,11],[11,3],[11,11],[7,7]].forEach(([r,c])=>{
+    ctx.beginPath(); ctx.arc(pos(c),pos(r),3,0,Math.PI*2); ctx.fill();
   });
-
   // Stones
-  for (let r = 0; r < SIZE; r++) {
-    for (let c = 0; c < SIZE; c++) {
-      if (board[r][c]) drawStone(r, c, board[r][c]);
-    }
-  }
-
-  // Last move marker
-  if (history.length > 0) {
-    const last = history[history.length - 1];
-    ctx.strokeStyle = last.player === 1 ? '#fff' : '#333';
-    ctx.lineWidth = 1.5;
-    const x = pos(last.c), y = pos(last.r), s = 5;
-    ctx.beginPath();
-    ctx.moveTo(x-s, y); ctx.lineTo(x+s, y);
-    ctx.moveTo(x, y-s); ctx.lineTo(x, y+s);
-    ctx.stroke();
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++) if(board[r][c]) drawStone(r,c,board[r][c]);
+  // Last move
+  if(history.length>0){
+    const lm=history[history.length-1];
+    ctx.strokeStyle=lm.p===1?'#fff':'#444';
+    ctx.lineWidth=1.5;
+    const x=pos(lm.c),y=pos(lm.r),s=5;
+    ctx.beginPath(); ctx.moveTo(x-s,y); ctx.lineTo(x+s,y); ctx.moveTo(x,y-s); ctx.lineTo(x,y+s); ctx.stroke();
   }
 }
 
-function drawStone(r, c, player) {
-  const x = pos(c), y = pos(r), radius = CELL/2 - 2;
-  const grad = ctx.createRadialGradient(x-3, y-3, 1, x, y, radius);
-  if (player === 1) {
-    grad.addColorStop(0, '#888'); grad.addColorStop(1, '#111');
-  } else {
-    grad.addColorStop(0, '#fff'); grad.addColorStop(1, '#bbb');
-  }
-  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2);
-  ctx.fillStyle = grad; ctx.fill();
-  ctx.strokeStyle = player === 1 ? '#333' : '#888';
-  ctx.lineWidth = 0.5; ctx.stroke();
+function drawStone(r,c,p){
+  const x=pos(c),y=pos(r),rad=CELL/2-2;
+  const g=ctx.createRadialGradient(x-3,y-3,1,x,y,rad);
+  if(p===1){ g.addColorStop(0,'#888'); g.addColorStop(1,'#111'); }
+  else { g.addColorStop(0,'#fff'); g.addColorStop(1,'#bbb'); }
+  ctx.beginPath(); ctx.arc(x,y,rad,0,Math.PI*2);
+  ctx.fillStyle=g; ctx.fill();
+  ctx.strokeStyle=p===1?'#333':'#888'; ctx.lineWidth=.5; ctx.stroke();
 }
 
-function checkWin(r, c, player) {
-  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
-  for (const [dr, dc] of dirs) {
-    let count = 1;
-    for (let d = 1; d < 5; d++) {
-      const nr = r+dr*d, nc = c+dc*d;
-      if (nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==player) break;
-      count++;
-    }
-    for (let d = 1; d < 5; d++) {
-      const nr = r-dr*d, nc = c-dc*d;
-      if (nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==player) break;
-      count++;
-    }
-    if (count >= 5) return true;
+// ─── Win check ───
+function checkWin(r,c,p){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const [dr,dc] of dirs){
+    let n=1;
+    for(let d=1;d<5;d++){ const nr=r+dr*d,nc=c+dc*d; if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==p) break; n++; }
+    for(let d=1;d<5;d++){ const nr=r-dr*d,nc=c-dc*d; if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==p) break; n++; }
+    if(n>=5) return true;
   }
   return false;
 }
 
-canvas.addEventListener('click', e => {
-  if (gameOver) return;
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const mx = (e.clientX - rect.left) * scaleX;
-  const my = (e.clientY - rect.top) * scaleY;
-  const c = Math.round((mx - PAD) / CELL);
-  const r = Math.round((my - PAD) / CELL);
-  if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) return;
-  if (board[r][c] !== 0) return;
-
-  board[r][c] = current;
-  history.push({r, c, player: current});
-  draw();
-
-  if (checkWin(r, c, current)) {
-    gameOver = true;
-    scores[current]++;
-    updateStatus(current);
-    highlightWin(r, c, current);
-    return;
-  }
-
-  if (history.length === SIZE * SIZE) {
-    gameOver = true;
-    updateStatus();
-    return;
-  }
-
-  current = current === 1 ? 2 : 1;
-  updateStatus();
-});
-
-function highlightWin(r, c, player) {
-  const dirs = [[0,1],[1,0],[1,1],[1,-1]];
-  for (const [dr, dc] of dirs) {
-    let cells = [[r, c]];
-    for (let d = 1; d < 5; d++) {
-      const nr = r+dr*d, nc = c+dc*d;
-      if (nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==player) break;
-      cells.push([nr, nc]);
-    }
-    for (let d = 1; d < 5; d++) {
-      const nr = r-dr*d, nc = c-dc*d;
-      if (nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==player) break;
-      cells.push([nr, nc]);
-    }
-    if (cells.length >= 5) {
-      ctx.strokeStyle = '#ff4444';
-      ctx.lineWidth = 3;
-      cells.forEach(([cr, cc]) => {
-        ctx.beginPath();
-        ctx.arc(pos(cc), pos(cr), CELL/2-2, 0, Math.PI*2);
-        ctx.stroke();
-      });
+// ─── Highlight winning stones ───
+function highlightWin(r,c,p){
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  for(const [dr,dc] of dirs){
+    let cells=[[r,c]];
+    for(let d=1;d<5;d++){ const nr=r+dr*d,nc=c+dc*d; if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==p) break; cells.push([nr,nc]); }
+    for(let d=1;d<5;d++){ const nr=r-dr*d,nc=c-dc*d; if(nr<0||nr>=SIZE||nc<0||nc>=SIZE||board[nr][nc]!==p) break; cells.push([nr,nc]); }
+    if(cells.length>=5){
+      ctx.strokeStyle='#ff4444'; ctx.lineWidth=3;
+      cells.forEach(([cr,cc])=>{ ctx.beginPath(); ctx.arc(pos(cc),pos(cr),CELL/2-2,0,Math.PI*2); ctx.stroke(); });
       return;
     }
   }
 }
 
-document.getElementById('btn-restart').onclick = init;
-document.getElementById('btn-undo').onclick = () => {
-  if (gameOver || history.length === 0) return;
-  const last = history.pop();
-  board[last.r][last.c] = 0;
-  current = last.player;
-  updateStatus();
-  draw();
-};
+// ─── Place stone ───
+function place(r,c,p){
+  board[r][c]=p;
+  history.push({r,c,p});
+}
 
-// Hover effect
-canvas.addEventListener('mousemove', e => {
-  if (gameOver) return;
+function afterPlace(r,c,p){
   draw();
-  const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  const mx = (e.clientX - rect.left) * scaleX;
-  const my = (e.clientY - rect.top) * scaleY;
-  const c = Math.round((mx - PAD) / CELL);
-  const r = Math.round((my - PAD) / CELL);
-  if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || board[r][c] !== 0) return;
-  const x = pos(c), y = pos(r), radius = CELL/2 - 2;
-  ctx.beginPath(); ctx.arc(x, y, radius, 0, Math.PI*2);
-  ctx.fillStyle = current === 1 ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.4)';
-  ctx.fill();
+  if(checkWin(r,c,p)){
+    gameOver=true; scores[p]++;
+    updateStatus(p); highlightWin(r,c,p);
+    canvas.classList.add('disabled');
+    return true;
+  }
+  if(history.length===SIZE*SIZE){ gameOver=true; updateStatus(); return true; }
+  return false;
+}
+
+// ─── Player click ───
+canvas.addEventListener('click',e=>{
+  if(gameOver||aiThinking) return;
+  if(mode==='pve'&&current===aiColor) return;
+  const rect=canvas.getBoundingClientRect();
+  const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+  const c=Math.round(((e.clientX-rect.left)*sx-PAD)/CELL);
+  const r=Math.round(((e.clientY-rect.top)*sy-PAD)/CELL);
+  if(r<0||r>=SIZE||c<0||c>=SIZE||board[r][c]!==0) return;
+  place(r,c,current);
+  const won=afterPlace(r,c,current);
+  if(won) return;
+  current=current===1?2:1;
+  updateStatus();
+  if(mode==='pve'&&current===aiColor) setTimeout(aiMove,120);
 });
 
-canvas.addEventListener('mouseleave', () => { if (!gameOver) draw(); });
+// Hover preview
+canvas.addEventListener('mousemove',e=>{
+  if(gameOver||aiThinking||(mode==='pve'&&current===aiColor)) return;
+  draw();
+  const rect=canvas.getBoundingClientRect();
+  const sx=canvas.width/rect.width, sy=canvas.height/rect.height;
+  const c=Math.round(((e.clientX-rect.left)*sx-PAD)/CELL);
+  const r=Math.round(((e.clientY-rect.top)*sy-PAD)/CELL);
+  if(r<0||r>=SIZE||c<0||c>=SIZE||board[r][c]!==0) return;
+  ctx.beginPath(); ctx.arc(pos(c),pos(r),CELL/2-2,0,Math.PI*2);
+  ctx.fillStyle=current===1?'rgba(0,0,0,.35)':'rgba(255,255,255,.45)'; ctx.fill();
+});
+canvas.addEventListener('mouseleave',()=>{ if(!gameOver) draw(); });
 
+// ─── AI ───
+const SCORES={ five:1e7, open4:1e5, half4:1e4, open3:5000, half3:500, open2:200, half2:20 };
+
+function evalLine(cells, p){
+  // cells is array of board values along a line centered at the candidate
+  // Returns a score for placing p at center
+  let score=0;
+  const opp=p===1?2:1;
+  // Check all windows of size 5 that include center (index 4 in a 9-cell window)
+  // cells: indices 0..8, center=4
+  for(let start=0;start<=4;start++){
+    const w=cells.slice(start,start+5);
+    if(w.includes(opp)) continue; // blocked by opponent
+    const mine=w.filter(x=>x===p).length;
+    const empty=w.filter(x=>x===0).length;
+    if(mine+empty!==5) continue;
+    if(mine===4) score+=SCORES.open4;
+    else if(mine===3) score+=SCORES.open3;
+    else if(mine===2) score+=SCORES.open2;
+  }
+  return score;
+}
+
+function scoreCell(r,c,p){
+  if(board[r][c]!==0) return -1;
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  let total=0;
+  board[r][c]=p;
+  for(const [dr,dc] of dirs){
+    // gather 9 cells centered at (r,c)
+    const line=[];
+    for(let d=-4;d<=4;d++){
+      const nr=r+dr*d, nc=c+dc*d;
+      if(nr<0||nr>=SIZE||nc<0||nc>=SIZE) line.push(-1);
+      else line.push(board[nr][nc]);
+    }
+    total+=evalLine(line,p);
+  }
+  board[r][c]=0;
+  return total;
+}
+
+function lineScore(r,c,p){
+  // More precise line score for patterns
+  const dirs=[[0,1],[1,0],[1,1],[1,-1]];
+  let s=0;
+  board[r][c]=p;
+  for(const [dr,dc] of dirs){
+    let cnt=1,open=0;
+    // forward
+    let blocked_f=false;
+    for(let d=1;d<=4;d++){
+      const nr=r+dr*d,nc=c+dc*d;
+      if(nr<0||nr>=SIZE||nc<0||nc>=SIZE){ blocked_f=true; break; }
+      if(board[nr][nc]===p) cnt++;
+      else if(board[nr][nc]===0){ open++; break; }
+      else { blocked_f=true; break; }
+    }
+    // backward
+    let blocked_b=false;
+    for(let d=1;d<=4;d++){
+      const nr=r-dr*d,nc=c-dc*d;
+      if(nr<0||nr>=SIZE||nc<0||nc>=SIZE){ blocked_b=true; break; }
+      if(board[nr][nc]===p) cnt++;
+      else if(board[nr][nc]===0){ open++; break; }
+      else { blocked_b=true; break; }
+    }
+    if(cnt>=5) s+=SCORES.five;
+    else if(cnt===4){ s+=(open===2)?SCORES.open4:SCORES.half4; }
+    else if(cnt===3){ s+=(open===2)?SCORES.open3:SCORES.half3; }
+    else if(cnt===2){ s+=(open===2)?SCORES.open2:SCORES.half2; }
+  }
+  board[r][c]=0;
+  return s;
+}
+
+function getCandidates(){
+  const cands=new Set();
+  const R=2;
+  for(let r=0;r<SIZE;r++) for(let c=0;c<SIZE;c++){
+    if(board[r][c]===0) continue;
+    for(let dr=-R;dr<=R;dr++) for(let dc=-R;dc<=R;dc++){
+      const nr=r+dr,nc=c+dc;
+      if(nr>=0&&nr<SIZE&&nc>=0&&nc<SIZE&&board[nr][nc]===0) cands.add(nr*SIZE+nc);
+    }
+  }
+  if(cands.size===0) cands.add(7*SIZE+7);
+  return [...cands].map(k=>[Math.floor(k/SIZE),k%SIZE]);
+}
+
+function aiMove(){
+  aiThinking=true;
+  updateStatus();
+  canvas.classList.add('disabled');
+
+  // Use setTimeout to let UI update before heavy computation
+  setTimeout(()=>{
+    const p=aiColor, opp=p===1?2:1;
+    const hard=document.getElementById('diff').value==='hard';
+    const cands=getCandidates();
+    let best=null, bestScore=-Infinity;
+
+    for(const [r,c] of cands){
+      if(board[r][c]!==0) continue;
+      // Win immediately
+      const atkScore=lineScore(r,c,p);
+      if(atkScore>=SCORES.five){ best=[r,c]; bestScore=SCORES.five*2; break; }
+      // Block opponent win
+      const defScore=lineScore(r,c,opp);
+      if(defScore>=SCORES.five){ best=[r,c]; bestScore=SCORES.five*1.5; break; }
+      // Combined
+      let total;
+      if(hard){
+        total = atkScore*1.1 + defScore;
+        // Bonus for center
+        total += (7-Math.abs(r-7))*(7-Math.abs(c-7))*0.5;
+      } else {
+        // Easy: more random
+        total = atkScore + defScore*0.7 + Math.random()*500;
+      }
+      if(total>bestScore){ bestScore=total; best=[r,c]; }
+    }
+
+    if(!best) best=[7,7];
+    place(best[0],best[1],p);
+    aiThinking=false;
+    canvas.classList.remove('disabled');
+    const won=afterPlace(best[0],best[1],p);
+    if(!won){
+      current=opp;
+      updateStatus();
+    }
+  }, 30);
+}
+
+// ─── Buttons ───
+document.getElementById('btn-restart').onclick=init;
+document.getElementById('btn-undo').onclick=()=>{
+  if(gameOver||aiThinking) return;
+  if(mode==='pvp'){
+    if(history.length===0) return;
+    const l=history.pop(); board[l.r][l.c]=0; current=l.p; updateStatus(); draw();
+  } else {
+    // undo 2 moves (AI + player)
+    let undone=0;
+    while(history.length>0&&undone<2){
+      const l=history.pop(); board[l.r][l.c]=0; undone++;
+    }
+    current=aiColor===1?2:1; // player's turn
+    updateStatus(); draw();
+  }
+};
+
+// Init default
+mode='pvp'; scores={1:0,2:0};
 init();
 </script>
 </body>
