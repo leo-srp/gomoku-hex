@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>掼蛋 GuanDan</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Segoe UI',system-ui,-apple-system,sans-serif;}
+body{background:#1a472a;background:radial-gradient(ellipse at center,#2d5a3f 0%,#1a472a 60%,#0f2b18 100%);}
+#game{width:100%;height:100%;position:relative;overflow:hidden;max-width:900px;margin:0 auto;}
+
+#topbar{position:absolute;top:0;left:0;right:0;height:36px;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;gap:16px;color:#ddd;font-size:13px;z-index:10;padding:0 8px;}
+.lv{background:#c0392b;color:#fff;padding:1px 7px;border-radius:4px;font-weight:bold;font-size:14px;margin:0 2px;}
+.tl{color:#999;font-size:11px;}
+
+/* Player info panels */
+.pi{position:absolute;display:flex;flex-direction:column;align-items:center;z-index:5;}
+.pi-name{color:#ccc;font-size:12px;background:rgba(0,0,0,0.5);padding:2px 10px;border-radius:10px;white-space:nowrap;margin-bottom:3px;}
+.pi-name.active{color:#ffd700;box-shadow:0 0 8px rgba(255,215,0,0.4);border:1px solid rgba(255,215,0,0.5);}
+.pi-name.done{color:#2ecc71;}
+.backs{display:flex;flex-wrap:wrap;justify-content:center;max-width:260px;gap:1px;}
+.cb{width:26px;height:36px;background:linear-gradient(135deg,#1a3a8a,#2a5aaa);border:1px solid #456;border-radius:3px;box-shadow:1px 1px 2px rgba(0,0,0,0.3);}
+.side-backs{display:flex;flex-direction:column;gap:1px;}
+.side-backs .cb{width:22px;height:28px;}
+
+#pi-top{top:40px;left:50%;transform:translateX(-50%);}
+#pi-left{left:5px;top:45%;transform:translateY(-50%);}
+#pi-right{right:5px;top:45%;transform:translateY(-50%);}
+
+/* Play area (center) */
+#play-area{position:absolute;top:42%;left:50%;transform:translate(-50%,-55%);width:88%;max-width:560px;height:190px;}
+.pa{position:absolute;display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pa-cards{display:flex;gap:1px;justify-content:center;min-height:44px;align-items:center;}
+.pa-pass{color:#999;font-size:13px;font-style:italic;}
+.pa-type{font-size:10px;color:#aaa;margin-top:1px;}
+#pa-top{top:0;left:50%;transform:translateX(-50%);}
+#pa-left{left:0;top:50%;transform:translateY(-50%);}
+#pa-right{right:0;top:50%;transform:translateY(-50%);}
+#pa-bottom{bottom:0;left:50%;transform:translateX(-50%);}
+
+/* Hand area */
+#hand-wrap{position:absolute;bottom:52px;left:0;right:0;display:flex;justify-content:center;overflow-x:auto;overflow-y:visible;padding:8px 4px 0;-webkit-overflow-scrolling:touch;}
+#hand-area{display:flex;justify-content:center;padding:0 8px;}
+
+/* Buttons */
+#btn-area{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:10;}
+.btn{padding:7px 16px;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:bold;transition:all 0.15s;touch-action:manipulation;}
+.btn:active{transform:scale(0.95);}
+.b1{background:#2980b9;color:#fff;}.b1:hover{background:#2471a3;}
+.b2{background:#8e44ad;color:#fff;}.b2:hover{background:#7d3c98;}
+.b3{background:#e67e22;color:#fff;}.b3:hover{background:#d35400;}
+.b4{background:#7f8c8d;color:#fff;}.b4:hover{background:#6c7a7b;}
+.btn:disabled{background:#555!important;color:#888!important;cursor:not-allowed;}
+
+/* Cards */
+.c{width:46px;height:64px;background:#fffef8;border-radius:4px;display:inline-flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:3px 0;cursor:pointer;user-select:none;border:2px solid #bbb;position:relative;box-shadow:1px 2px 4px rgba(0,0,0,0.25);transition:margin-top 0.12s;flex-shrink:0;}
+.c .r{font-size:15px;font-weight:bold;line-height:1;}
+.c .s{font-size:13px;line-height:1;}
+.c:hover{border-color:#e8c840;}
+.c.sel{margin-top:-14px;border-color:#ffd700;box-shadow:0 0 8px rgba(255,215,0,0.5);}
+.c.red{color:#cc1100;}
+.c.blk{color:#1a1a1a;}
+.c.jr{background:linear-gradient(135deg,#fff8f0,#ffe8e0);color:#cc1100;}
+.c.jb{background:linear-gradient(135deg,#f8f8ff,#e4e4f0);color:#1a1a2a;}
+.c.wm::after{content:'★';position:absolute;top:0;right:1px;font-size:9px;color:#e8a000;}
+.cm{width:34px;height:46px;cursor:default;}
+.cm .r{font-size:12px;}
+.cm .s{font-size:11px;}
+#hand-area .c{margin:0 -5px;position:relative;}
+
+/* Message */
+#msg{position:absolute;top:46%;left:50%;transform:translate(-50%,-50%);color:#ffd700;font-size:26px;font-weight:bold;text-shadow:2px 2px 8px rgba(0,0,0,0.8);z-index:20;pointer-events:none;opacity:0;transition:opacity 0.25s;}
+#msg.show{opacity:1;}
+
+/* Result overlay */
+#ov{position:absolute;inset:0;background:rgba(0,0,0,0.78);display:none;align-items:center;justify-content:center;z-index:30;flex-direction:column;}
+#ov.show{display:flex;}
+#rb{background:#2c3e50;border:2px solid #f39c12;border-radius:12px;padding:28px 36px;text-align:center;color:#fff;max-width:90%;}
+#rb h2{margin-bottom:12px;color:#f1c40f;font-size:22px;}
+#rb p{margin:4px 0;font-size:15px;}
+#rb .btn{margin-top:16px;}
+
+@media(max-width:600px){
+ .c{width:36px;height:52px;padding:2px 0;}
+ .c .r{font-size:12px;}
+ .c .s{font-size:10px;}
+ .cm{width:26px;height:38px;}
+ .cm .r{font-size:10px;}
+ .cm .s{font-size:9px;}
+ #hand-area .c{margin:0 -7px;}
+ .cb{width:20px;height:28px;}
+ .side-backs .cb{width:16px;height:22px;}
+ .btn{padding:6px 12px;font-size:12px;}
+ #topbar{font-size:11px;height:32px;gap:8px;}
+ #play-area{height:150px;}
+ #hand-wrap{bottom:46px;}
+ #btn-area{bottom:6px;}
+}
+</style>
+</head>
+<body>
+<div id="game">
+ <div id="topbar">
+  <span class="tl">我方</span><span class="lv" id="t0l">2</span>
+  <span style="color:#444">|</span>
+  <span class="tl">对方</span><span class="lv" id="t1l">2</span>
+  <span style="color:#444">|</span>
+  <span class="tl">级牌</span><span class="lv" id="clv">2</span>
+ </div>
+
+ <div class="pi" id="pi-top">
+  <div class="pi-name" id="nm2">对家(AI) 27张</div>
+  <div class="backs" id="bk2"></div>
+ </div>
+ <div class="pi" id="pi-left">
+  <div class="pi-name" id="nm3">左(AI) 27张</div>
+  <div class="side-backs" id="bk3"></div>
+ </div>
+ <div class="pi" id="pi-right">
+  <div class="pi-name" id="nm1">右(AI) 27张</div>
+  <div class="side-backs" id="bk1"></div>
+ </div>
+
+ <div id="play-area">
+  <div class="pa" id="pa-top"><div class="pa-cards" id="pc2"></div></div>
+  <div class="pa" id="pa-left"><div class="pa-cards" id="pc3"></div></div>
+  <div class="pa" id="pa-right"><div class="pa-cards" id="pc1"></div></div>
+  <div class="pa" id="pa-bottom"><div class="pa-cards" id="pc0"></div></div>
+ </div>
+
+ <div id="hand-wrap"><div id="hand-area"></div></div>
+ <div id="btn-area">
+  <button class="btn b1" onclick="G.sortHand()">理牌</button>
+  <button class="btn b2" onclick="G.hint()">提示</button>
+  <button class="btn b3" id="bp" onclick="G.playSelected()" disabled>出牌</button>
+  <button class="btn b4" id="bs" onclick="G.passPlay()" disabled>Pass</button>
+ </div>
+
+ <div id="msg"></div>
+ <div id="ov">
+  <div id="rb">
+   <h2 id="rt"></h2>
+   <p id="rd"></p>
+   <p id="rl"></p>
+   <button class="btn b3" id="nrb" onclick="G.newRound()">下一局</button>
+  </div>
+ </div>
+</div>
+
+<script>
+(function(){
+// ========== Constants ==========
+const SUITS = ['♠','♥','♦','♣'];
+const SC = {'♠':'blk','♣':'blk','♥':'red','♦':'red'};
+const RO = ['2','3','4','5','6','7','8','9','10','J','Q','K','A']; // rank order
+const RV = {}; RO.forEach((r,i)=>RV[r]=i); // rank -> value
+const NAMES = ['你','右(AI)','对家(AI)','左(AI)'];
+const TEAM = [0,1,0,1];
+
+// ========== State ==========
+let S = {
+ tl:[0,0], // team levels (index into RO)
+ lv:'2', // current level card rank
+ h:[[],[],[],[]], // hands
+ turn:0,
+ cp:null, // current play {p, cards, ht}
+ pc:0, // pass count
+ fo:[], // finish order
+ fp:0, // first player
+ sel:new Set(),
+ over:false,
+ active:false,
+};
+
+// ========== Deck ==========
+function mkDeck(){
+ let d=[];
+ for(let k=0;k<2;k++){
+  for(let s of SUITS) for(let r of RO) d.push({s,r,id:r+s+'_'+k});
+  d.push({s:'J',r:'SJ',id:'SJ_'+k});
+  d.push({s:'J',r:'BJ',id:'BJ_'+k});
+ }
+ return d;
+}
+function shuf(a){for(let i=a.length-1;i>0;i--){let j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function isJ(c){return c.r==='SJ'||c.r==='BJ';}
+function isW(c){return isJ(c)||c.r===S.lv;}
+function cv(c){return c.r==='SJ'?100:c.r==='BJ'?101:RV[c.r];}
+function csv(c){
+ if(c.r==='SJ')return 200;if(c.r==='BJ')return 201;
+ if(c.r===S.lv)return 100+SUITS.indexOf(c.s);
+ return RV[c.r]*10+SUITS.indexOf(c.s);
+}
+
+// ========== Hand Type Detection ==========
+// Hand type object: {t:type, r:rank, n:size}
+// Types: 'S'=single,'P'=pair,'T'=triple,'FH'=fullhouse,'ST'=straight,
+//        'P2'=plate2(连对),'P3'=plate3(钢板),'B'=bomb,'FS'=flush_straight,'R'=rocket
+
+function detect(cards){
+ if(!cards||!cards.length) return null;
+ let n=cards.length;
+ let ws=cards.filter(isW), ns=cards.filter(c=>!isW(c));
+ let wc=ws.length;
+
+ // Rocket: 4 jokers
+ if(n===4 && cards.every(isJ)) return {t:'R',r:99999,n:4};
+
+ let res=[];
+
+ // Single
+ if(n===1) res.push({t:'S',r:cv(cards[0]),n:1});
+
+ // Pair
+ if(n===2){let g=grp(ns,wc,2);if(g!==null)res.push({t:'P',r:g,n:2});}
+
+ // Triple
+ if(n===3){let g=grp(ns,wc,3);if(g!==null)res.push({t:'T',r:g,n:3});}
+
+ // Full house
+ if(n===5){let f=fh(ns,wc);if(f)res.push(f);}
+
+ // Plate2 (连对, 4 cards = 2 consecutive pairs)
+ if(n===4){let p=conPairs(ns,wc,2);if(p!==null)res.push({t:'P2',r:p,n:4});}
+
+ // Plate3 (钢板, 6 cards = 2 consecutive triples)
+ if(n===6){let p=conTrips(ns,wc,2);if(p!==null)res.push({t:'P3',r:p,n:6});}
+
+ // Straight (5+)
+ if(n>=5){let s=str(ns,wc,n);if(s!==null)res.push({t:'ST',r:s,n:n});}
+
+ // Flush straight (5+, bomb type)
+ if(n>=5){let f=fstr(ns,ws,n);if(f!==null)res.push({t:'FS',r:f+5000,n:n});}
+
+ // Bomb (4+ same rank)
+ if(n>=4){let b=bomb(ns,wc,n);if(b!==null)res.push({t:'B',r:b+n*1000,n:n});}
+
+ if(!res.length) return null;
+
+ // Prefer non-bomb interpretation
+ let nb=res.filter(x=>x.t!=='B'&&x.t!=='FS'&&x.t!=='R');
+ if(nb.length) return nb[0];
+ // Return strongest bomb
+ res.sort((a,b)=>b.r-a.r);
+ return res[0];
+}
+
+function grp(ns,wc,cnt){
+ if(ns.length+wc!==cnt) return null;
+ if(!ns.length) return wc>=cnt ? cv({r:S.lv,s:'♠'}) : null;
+ let rs=ns.map(c=>c.r);
+ if(new Set(rs).size!==1) return null;
+ return RV[rs[0]];
+}
+
+function fh(ns,wc){
+ // 5 cards: 3 of rank A + 2 of rank B
+ if(ns.length+wc!==5) return null;
+ let ct={};
+ for(let c of ns) ct[c.r]=(ct[c.r]||0)+1;
+ let rks=Object.keys(ct);
+
+ for(let r of rks){
+  let need3=Math.max(0,3-ct[r]);
+  if(need3>wc) continue;
+  let rem=ns.filter(c=>c.r!==r);
+  let pw=wc-need3;
+  if(rem.length+pw!==2) continue;
+  if(rem.length<=1 || rem[0].r===rem[1].r)
+   return {t:'FH',r:RV[r],n:5};
+ }
+ // All wilds
+ if(!ns.length && wc===5) return {t:'FH',r:RV[S.lv],n:5};
+ return null;
+}
+
+// Valid straight ranks (excluding 2 and level card)
+function vsr(){return RO.filter(r=>r!=='2'&&r!==S.lv);}
+
+function str(ns,wc,len){
+ if(len<5) return null;
+ let nrs=ns.map(c=>c.r);
+ for(let r of nrs) if(r==='2'||r===S.lv) return null;
+
+ let vr=vsr();
+ if(vr.length<len) return null;
+
+ for(let i=vr.length-len;i>=0;i--){
+  let seq=vr.slice(i,i+len);
+  // Check consecutive in original RO
+  let vals=seq.map(r=>RV[r]);
+  // They must be consecutive integers
+  let ok=true;
+  for(let j=1;j<vals.length;j++){
+   if(vals[j]!==vals[j-1]+1){ok=false;break;}
+  }
+  if(!ok) continue;
+
+  let ss=new Set(seq), need=0, poss=true;
+  for(let r of nrs) if(!ss.has(r)){poss=false;break;}
+  if(!poss) continue;
+  for(let r of seq){
+   let have=nrs.filter(x=>x===r).length;
+   if(have===0) need++;
+   else if(have>1){poss=false;break;}
+  }
+  if(poss && need<=wc) return vals[vals.length-1];
+ }
+ return null;
+}
+
+function fstr(ns,ws,len){
+ if(len<5) return null;
+ let nonJ=ns.filter(c=>!isJ(c));
+ let suits=nonJ.map(c=>c.s);
+ if(suits.length>0 && new Set(suits).size>1) return null;
+
+ let nrs=ns.map(c=>c.r);
+ for(let r of nrs) if(r==='2'||r===S.lv) return null;
+
+ let vr=vsr(), wc=ws.length;
+ if(vr.length<len) return null;
+
+ for(let i=vr.length-len;i>=0;i--){
+  let seq=vr.slice(i,i+len);
+  let vals=seq.map(r=>RV[r]);
+  let ok=true;
+  for(let j=1;j<vals.length;j++) if(vals[j]!==vals[j-1]+1){ok=false;break;}
+  if(!ok) continue;
+
+  let ss=new Set(seq), need=0, poss=true;
+  for(let r of nrs) if(!ss.has(r)){poss=false;break;}
+  if(!poss) continue;
+  for(let r of seq){
+   let have=nrs.filter(x=>x===r).length;
+   if(have===0) need++;
+   else if(have>1){poss=false;break;}
+  }
+  if(poss && need<=wc) return vals[vals.length-1];
+ }
+ return null;
+}
+
+function conPairs(ns,wc,cnt){
+ if(ns.length+wc!==cnt*2) return null;
+ let nrs=ns.map(c=>c.r);
+ for(let r of nrs) if(r==='2'||r===S.lv) return null;
+ let vr=vsr();
+
+ for(let i=vr.length-cnt;i>=0;i--){
+  let seq=vr.slice(i,i+cnt);
+  let vals=seq.map(r=>RV[r]);
+  let ok=true;
+  for(let j=1;j<vals.length;j++) if(vals[j]!==vals[j-1]+1){ok=false;break;}
+  if(!ok) continue;
+
+  let ss=new Set(seq), need=0, poss=true;
+  for(let r of nrs) if(!ss.has(r)){poss=false;break;}
+  if(!poss) continue;
+  for(let r of seq) need+=Math.max(0,2-(nrs.filter(x=>x===r).length));
+  if(poss && need<=wc) return vals[vals.length-1];
+ }
+ return null;
+}
+
+function conTrips(ns,wc,cnt){
+ if(ns.length+wc!==cnt*3) return null;
+ let nrs=ns.map(c=>c.r);
+ for(let r of nrs) if(r==='2'||r===S.lv) return null;
+ let vr=vsr();
+
+ for(let i=vr.length-cnt;i>=0;i--){
+  let seq=vr.slice(i,i+cnt);
+  let vals=seq.map(r=>RV[r]);
+  let ok=true;
+  for(let j=1;j<vals.length;j++) if(vals[j]!==vals[j-1]+1){ok=false;break;}
+  if(!ok) continue;
+
+  let ss=new Set(seq), need=0, poss=true;
+  for(let r of nrs) if(!ss.has(r)){poss=false;break;}
+  if(!poss) continue;
+  for(let r of seq) need+=Math.max(0,3-(nrs.filter(x=>x===r).length));
+  if(poss && need<=wc) return vals[vals.length-1];
+ }
+ return null;
+}
+
+function bomb(ns,wc,total){
+ if(total<4) return null;
+ if(!ns.length){
+  if(total>=4) return RV[S.lv];
+  return null;
+ }
+ let rs=ns.map(c=>c.r);
+ if(new Set(rs).size!==1) return null;
+ return RV[rs[0]];
+}
+
+// Compare: can ht2 beat ht1?
+function beats(ht2,ht1){
+ if(!ht1) return true;
+ let b2=ht2.t==='B'||ht2.t==='FS'||ht2.t==='R';
+ let b1=ht1.t==='B'||ht1.t==='FS'||ht1.t==='R';
+ if(b2 && !b1) return true;
+ if(!b2 && b1) return false;
+ if(b2 && b1) return ht2.r > ht1.r;
+ if(ht2.t!==ht1.t || ht2.n!==ht1.n) return false;
+ return ht2.r > ht1.r;
+}
+
+// ========== Smart AI Combo Finder ==========
+// Instead of brute-force, group cards by rank and find combos intelligently
+
+function findOptions(hand, target){
+ // target: the handtype to beat, or null for free play
+ let opts=[];
+ let n=hand.length;
+ if(!n) return opts;
+
+ // Group by rank
+ let byRank={};
+ for(let c of hand){
+  let key=c.r;
+  if(!byRank[key]) byRank[key]=[];
+  byRank[key].push(c);
+ }
+
+ let ws=hand.filter(isW);
+ let nws=hand.filter(c=>!isW(c));
+ let nwByRank={};
+ for(let c of nws){
+  if(!nwByRank[c.r]) nwByRank[c.r]=[];
+  nwByRank[c.r].push(c);
+ }
+
+ if(!target){
+  // Free play: generate all playable combos
+  // Singles
+  for(let c of hand) opts.push({cards:[c],ht:{t:'S',r:cv(c),n:1}});
+
+  // Pairs (same rank, or one normal + wild)
+  findGroupCombos(hand,nwByRank,ws,2,'P',opts);
+
+  // Triples
+  findGroupCombos(hand,nwByRank,ws,3,'T',opts);
+
+  // Full houses
+  findFullHouses(hand,nwByRank,ws,opts);
+
+  // Consecutive pairs (plate2)
+  findConPairCombos(hand,nwByRank,ws,opts);
+
+  // Consecutive triples (plate3)
+  findConTripCombos(hand,nwByRank,ws,opts);
+
+  // Straights
+  findStraightCombos(hand,nwByRank,ws,opts,false);
+
+  // Bombs
+  findBombCombos(hand,byRank,ws,opts);
+
+  return opts;
+ }
+
+ // Must beat target
+ let tt=target.t, tn=target.n, tr=target.r;
+ let isBomb=tt==='B'||tt==='FS'||tt==='R';
+
+ if(!isBomb){
+  // Find same type that beats
+  if(tt==='S'){
+   for(let c of hand) if(cv(c)>tr) opts.push({cards:[c],ht:{t:'S',r:cv(c),n:1}});
+  } else if(tt==='P'){
+   findGroupCombos(hand,nwByRank,ws,2,'P',opts,tr);
+  } else if(tt==='T'){
+   findGroupCombos(hand,nwByRank,ws,3,'T',opts,tr);
+  } else if(tt==='FH'){
+   findFullHouses(hand,nwByRank,ws,opts,tr);
+  } else if(tt==='P2'){
+   findConPairCombos(hand,nwByRank,ws,opts,tr);
+  } else if(tt==='P3'){
+   findConTripCombos(hand,nwByRank,ws,opts,tr);
+  } else if(tt==='ST'){
+   findStraightCombos(hand,nwByRank,ws,opts,false,tn,tr);
+  }
+ }
+
+ // Always include bombs that beat
+ findBombCombos(hand,byRank,ws,opts,isBomb?tr:0);
+
+ return opts;
+}
+
+function findGroupCombos(hand,nwByRank,ws,cnt,type,opts,minR){
+ // Find groups of `cnt` same-rank cards (using wilds to fill)
+ let mr=minR||(-1);
+ // Pure groups (no wilds needed)
+ for(let r in nwByRank){
+  if(RV[r]<=mr) continue;
+  let cards=nwByRank[r];
+  if(cards.length>=cnt){
+   // Pick first `cnt`
+   let pick=cards.slice(0,cnt);
+   opts.push({cards:pick,ht:{t:type,r:RV[r],n:cnt}});
+  }
+ }
+ // With wilds
+ if(ws.length>0){
+  for(let r in nwByRank){
+   if(RV[r]<=mr) continue;
+   let cards=nwByRank[r];
+   if(cards.length<cnt && cards.length+ws.length>=cnt){
+    let need=cnt-cards.length;
+    let pick=[...cards,...ws.slice(0,need)];
+    opts.push({cards:pick,ht:{t:type,r:RV[r],n:cnt}});
+   }
+  }
+ }
+}
+
+function findFullHouses(hand,nwByRank,ws,opts,minR){
+ let mr=minR||(-1);
+ let wc=ws.length;
+ let ranks=Object.keys(nwByRank);
+
+ for(let r of ranks){
+  let rv=RV[r]; if(rv<=mr) continue;
+  let tc=nwByRank[r].length;
+  let need3=Math.max(0,3-tc);
+  if(need3>wc) continue;
+
+  // Find a pair from another rank
+  let remainW=wc-need3;
+  let tripleCards=nwByRank[r].slice(0,Math.min(3,tc));
+  let usedWilds=ws.slice(0,need3);
+
+  for(let r2 of ranks){
+   if(r2===r) continue;
+   let pc=nwByRank[r2].length;
+   let need2=Math.max(0,2-pc);
+   if(need2>remainW) continue;
+   let pairCards=nwByRank[r2].slice(0,Math.min(2,pc));
+   let pairWilds=ws.slice(need3,need3+need2);
+   opts.push({cards:[...tripleCards,...usedWilds,...pairCards,...pairWilds],ht:{t:'FH',r:rv,n:5}});
+   break; // One pair option per triple rank is enough for AI
+  }
+
+  // Pair from wilds only
+  if(remainW>=2 && !ranks.some(r2=>r2!==r)){
+   let pairWilds=ws.slice(need3,need3+2);
+   if(pairWilds.length===2)
+    opts.push({cards:[...tripleCards,...usedWilds,...pairWilds],ht:{t:'FH',r:rv,n:5}});
+  }
+ }
+}
+
+function findStraightCombos(hand,nwByRank,ws,opts,flush,fixLen,minR){
+ let vr=vsr();
+ let wc=ws.length;
+ let minLen=fixLen||5;
+ let maxLen=fixLen||Math.min(vr.length,hand.length);
+ let mr=minR||(-1);
+
+ for(let len=minLen;len<=maxLen;len++){
+  for(let i=vr.length-len;i>=0;i--){
+   let seq=vr.slice(i,i+len);
+   let vals=seq.map(r=>RV[r]);
+   // Check consecutive
+   let ok=true;
+   for(let j=1;j<vals.length;j++) if(vals[j]!==vals[j-1]+1){ok=false;break;}
+   if(!ok) continue;
+   if(vals[vals.length-1]<=mr) continue;
+
+   let need=0, poss=true, picked=[];
+   for(let r of seq){
+    let have=nwByRank[r];
+    if(have && have.length>0){
+     picked.push(have[0]);
+    } else {
+     need++;
+    }
+   }
+   if(need>wc) continue;
+   // Add wilds
+   let combo=[...picked,...ws.slice(0,need)];
+   if(combo.length===len){
+    opts.push({cards:combo,ht:{t:'ST',r:vals[vals.length-1],n:len}});
+   }
+  }
+  if(fixLen) break;
+ }
+}
+
+function findConPairCombos(hand,nwByRank,ws,opts,minR){
+ let vr=vsr(), wc=ws.length, mr=minR||(-1);
+ for(let i=vr.length-2;i>=0;i--){
+  let seq=vr.slice(i,i+2);
+  let vals=seq.map(r=>RV[r]);
+  if(vals[1]!==vals[0]+1) continue;
+  if(vals[vals.length-1]<=mr) continue;
+
+  let need=0, picked=[];
+  for(let r of seq){
+   let have=nwByRank[r]||[];
+   picked.push(...have.slice(0,2));
+   need+=Math.max(0,2-have.length);
+  }
+  if(need>wc) continue;
+  let combo=[...picked,...ws.slice(0,need)];
+  if(combo.length===4) opts.push({cards:combo,ht:{t:'P2',r:vals[1],n:4}});
+ }
+}
+
+function findConTripCombos(hand,nwByRank,ws,opts,minR){
+ let vr=vsr(), wc=ws.length, mr=minR||(-1);
+ for(let i=vr.length-2;i>=0;i--){
+  let seq=vr.slice(i,i+2);
+  let vals=seq.map(r=>RV[r]);
+  if(vals[1]!==vals[0]+1) continue;
+  if(vals[vals.length-1]<=mr) continue;
+
+  let need=0, picked=[];
+  for(let r of seq){
+   let have=nwByRank[r]||[];
+   picked.push(...have.slice(0,3));
+   need+=Math.max(0,3-have.length);
+  }
+  if(need>wc) continue;
+  let combo=[...picked,...ws.slice(0,need)];
+  if(combo.length===6) opts.push({cards:combo,ht:{t:'P3',r:vals[1],n:6}});
+ }
+}
+
+function findBombCombos(hand,byRank,ws,opts,minR){
+ let mr=minR||0;
+ let wc=ws.length;
+
+ // Rocket
+ let jokers=hand.filter(isJ);
+ if(jokers.length===4){
+  let ht={t:'R',r:99999,n:4};
+  if(ht.r>mr) opts.push({cards:jokers,ht});
+ }
+
+ // Normal bombs (4+ same rank, using wilds)
+ for(let r in byRank){
+  if(r==='SJ'||r==='BJ') continue;
+  let all=byRank[r];
+  let normals=all.filter(c=>!isW(c));
+  let rankWilds=all.filter(c=>isW(c));
+  // Also can use other wilds
+  let otherWilds=ws.filter(c=>!all.includes(c));
+  let availWilds=[...rankWilds,...otherWilds];
+
+  for(let sz=Math.max(4,normals.length);sz<=normals.length+availWilds.length && sz<=8;sz++){
+   let bombR=RV[r]+sz*1000;
+   if(bombR<=mr) continue;
+   let need=sz-normals.length;
+   if(need>availWilds.length) continue;
+   let combo=[...normals,...availWilds.slice(0,need)];
+   opts.push({cards:combo,ht:{t:'B',r:bombR,n:sz}});
+  }
+ }
+
+ // Flush straight bombs
+ for(let suit of SUITS){
+  let suited=hand.filter(c=>c.s===suit && !isW(c));
+  let suitedByRank={};
+  for(let c of suited){
+   if(c.r==='2'||c.r===S.lv) continue;
+   suitedByRank[c.r]=c;
+  }
+  let vr=vsr();
+  for(let len=5;len<=Math.min(vr.length,suited.length+wc);len++){
+   for(let i=vr.length-len;i>=0;i--){
+    let seq=vr.slice(i,i+len);
+    let vals=seq.map(r=>RV[r]);
+    let ok=true;
+    for(let j=1;j<vals.length;j++) if(vals[j]!==vals[j-1]+1){ok=false;break;}
+    if(!ok) continue;
+
+    let fsR=vals[vals.length-1]+5000;
+    if(fsR<=mr) continue;
+
+    let need=0,picked=[];
+    for(let r of seq){
+     if(suitedByRank[r]){picked.push(suitedByRank[r]);}
+     else need++;
+    }
+    if(need>wc) continue;
+    let combo=[...picked,...ws.slice(0,need)];
+    if(combo.length===len) opts.push({cards:combo,ht:{t:'FS',r:fsR,n:len}});
+   }
+  }
+ }
+}
+
+// ========== AI ==========
+function aiDecide(p){
+ let hand=S.h[p];
+ if(!hand.length) return null;
+ let mate=(p+2)%4;
+ let free=!S.cp||S.cp.p===p;
+
+ if(free){
+  let opts=findOptions(hand,null);
+  if(!opts.length) return null;
+
+  if(hand.length<=3){
+   opts.sort((a,b)=>a.cards.length-b.cards.length||a.ht.r-b.ht.r);
+   return opts[0];
+  }
+
+  // Prefer: singles > pairs > triples > fullhouse > straights > plates. Avoid bombs.
+  let nb=opts.filter(o=>o.ht.t!=='B'&&o.ht.t!=='FS'&&o.ht.t!=='R');
+  if(!nb.length) nb=opts;
+
+  let pref=[
+   nb.filter(o=>o.ht.t==='S'),
+   nb.filter(o=>o.ht.t==='P'),
+   nb.filter(o=>o.ht.t==='T'),
+   nb.filter(o=>o.ht.t==='FH'),
+   nb.filter(o=>o.ht.t==='P2'),
+   nb.filter(o=>o.ht.t==='P3'),
+   nb.filter(o=>o.ht.t==='ST'),
+  ];
+  for(let g of pref){
+   if(g.length){
+    g.sort((a,b)=>a.ht.r-b.ht.r);
+    return g[0];
+   }
+  }
+  nb.sort((a,b)=>a.ht.r-b.ht.r);
+  return nb[0];
+ }
+
+ // Must beat
+ // Teammate leading? Pass (unless almost done)
+ if(S.cp && S.cp.p===mate && hand.length>3) return null;
+
+ let opts=findOptions(hand,S.cp.ht);
+ if(!opts.length) return null;
+
+ let nb=opts.filter(o=>o.ht.t!=='B'&&o.ht.t!=='FS'&&o.ht.t!=='R');
+ let bombs=opts.filter(o=>o.ht.t==='B'||o.ht.t==='FS'||o.ht.t==='R');
+
+ if(nb.length){
+  nb.sort((a,b)=>a.ht.r-b.ht.r);
+  return nb[0];
+ }
+
+ if(bombs.length){
+  // Use bomb if almost done or opponent almost done
+  let opp1=(p+1)%4, opp2=(p+3)%4;
+  if(hand.length<=6 || S.h[opp1].length<=4 || S.h[opp2].length<=4){
+   bombs.sort((a,b)=>a.ht.r-b.ht.r);
+   return bombs[0];
+  }
+  return null; // Save bombs
+ }
+ return null;
+}
+
+// ========== Game Flow ==========
+function deal(){
+ let d=shuf(mkDeck());
+ for(let i=0;i<4;i++) S.h[i]=d.slice(i*27,(i+1)*27);
+ for(let i=0;i<4;i++) S.h[i].sort((a,b)=>csv(a)-csv(b));
+}
+
+function clearPA(){
+ for(let i=0;i<4;i++) document.getElementById('pc'+i).innerHTML='';
+}
+
+function showPlayed(p,cards){
+ let el=document.getElementById('pc'+p);
+ el.innerHTML='';
+ for(let c of cards) el.appendChild(mkCard(c,true));
+}
+
+function showPass(p){
+ document.getElementById('pc'+p).innerHTML='<span class="pa-pass">Pass</span>';
+}
+
+function showMsg(t,d){
+ let e=document.getElementById('msg');
+ e.textContent=t;e.classList.add('show');
+ setTimeout(()=>e.classList.remove('show'),d||1500);
+}
+
+function execPlay(p,cards,ht){
+ // Render
+ if(!S.cp||S.cp.p===p) clearPA();
+ showPlayed(p,cards);
+
+ // Remove from hand
+ let ids=new Set(cards.map(c=>c.id));
+ S.h[p]=S.h[p].filter(c=>!ids.has(c.id));
+ S.sel.clear();
+ S.cp={p,cards,ht};
+ S.pc=0;
+
+ // Finished?
+ if(!S.h[p].length && !S.fo.includes(p)){
+  S.fo.push(p);
+  let pos=S.fo.length;
+  showMsg(NAMES[p]+' '+['','头游','二游','三游','末游'][pos]+'!',1500);
+  if(S.fo.length>=3){
+   for(let i=0;i<4;i++) if(!S.fo.includes(i)){S.fo.push(i);break;}
+   render();
+   setTimeout(endRound,1800);
+   return;
+  }
+ }
+
+ advance();
+ render();
+ if(S.turn!==0 && !S.over) setTimeout(aiTurn,500);
+}
+
+function execPass(p){
+ S.pc++;
+ showPass(p);
+
+ let active=4-S.fo.length;
+ if(S.pc>=active-1){
+  S.cp=null;S.pc=0;
+ }
+ advance();
+ render();
+ if(S.turn!==0 && !S.over) setTimeout(aiTurn,500);
+}
+
+function advance(){
+ let next=(S.turn+1)%4;
+ for(let t=0;t<4;t++){
+  if(!S.fo.includes(next)) break;
+  if(S.cp && S.cp.p===next){S.cp=null;S.pc=0;}
+  next=(next+1)%4;
+ }
+ if(S.cp && S.cp.p===next){S.cp=null;S.pc=0;}
+ S.turn=next;
+}
+
+function aiTurn(){
+ if(S.over||S.fo.length>=3) return;
+ let p=S.turn;
+ if(p===0) return;
+ if(S.fo.includes(p)){advance();render();if(S.turn!==0&&!S.over)setTimeout(aiTurn,300);return;}
+
+ let free=!S.cp||S.cp.p===p;
+ let res=aiDecide(p);
+
+ if(res){
+  execPlay(p,res.cards,res.ht);
+ } else if(free){
+  let c=S.h[p][0];
+  execPlay(p,[c],{t:'S',r:cv(c),n:1});
+ } else {
+  execPass(p);
+ }
+}
+
+function endRound(){
+ S.over=true;S.active=false;
+ let f=S.fo;
+ let ft=TEAM[f[0]], st=TEAM[f[1]];
+ let wt=ft, up=0;
+ if(ft===st) up=3;
+ else if(TEAM[f[2]]===ft) up=2;
+ else up=1;
+
+ S.tl[wt]=Math.min(S.tl[wt]+up, RO.length);
+ S.fp=f[0];
+
+ let wn=wt===0?'我方':'对方';
+ let title=wt===0?'🎉 我方获胜！':'😞 对方获胜！';
+ let gw=S.tl[wt]>=RO.length;
+ if(gw) title=wt===0?'🏆 恭喜通关！':'💀 对方通关！';
+
+ document.getElementById('rt').textContent=title;
+ document.getElementById('rd').textContent=f.map((p,i)=>NAMES[p]+['头游','二游','三游','末游'][i]).join(', ');
+ document.getElementById('rl').textContent=gw?'游戏结束！':wn+'升'+up+'级 → '+RO[Math.min(S.tl[wt],RO.length-1)];
+
+ let btn=document.getElementById('nrb');
+ if(gw){
+  btn.textContent='重新开始';
+  btn.onclick=()=>{S.tl=[0,0];btn.textContent='下一局';btn.onclick=()=>G.newRound();G.newRound();};
+ } else {
+  btn.textContent='下一局';
+  btn.onclick=()=>G.newRound();
+ }
+ document.getElementById('ov').classList.add('show');
+}
+
+// ========== Render ==========
+function mkCard(card,mini){
+ let d=document.createElement('div');
+ let cl=['c'];
+ if(mini) cl.push('cm');
+
+ let rt=card.r, st='';
+ if(card.r==='BJ'){rt='大';st='王';cl.push('jr');}
+ else if(card.r==='SJ'){rt='小';st='王';cl.push('jb');}
+ else{st=card.s;cl.push(SC[card.s]);}
+
+ if(isW(card)&&!isJ(card)) cl.push('wm');
+
+ d.className=cl.join(' ');
+ d.innerHTML='<span class="r">'+rt+'</span><span class="s">'+st+'</span>';
+ return d;
+}
+
+function render(){
+ // Hand
+ let ha=document.getElementById('hand-area');
+ ha.innerHTML='';
+ for(let c of S.h[0]){
+  let el=mkCard(c,false);
+  if(S.sel.has(c.id)) el.classList.add('sel');
+  el.onclick=()=>{
+   if(S.turn!==0||S.over) return;
+   S.sel.has(c.id)?S.sel.delete(c.id):S.sel.add(c.id);
+   render();
+  };
+  ha.appendChild(el);
+ }
+
+ // AI backs
+ for(let p of [1,2,3]){
+  let el=document.getElementById('bk'+p);
+  el.innerHTML='';
+  let cnt=S.h[p].length, show=Math.min(cnt,14);
+  for(let i=0;i<show;i++){let b=document.createElement('div');b.className='cb';el.appendChild(b);}
+
+  let nm=document.getElementById('nm'+p);
+  if(S.fo.includes(p)){
+   let pos=S.fo.indexOf(p)+1;
+   nm.textContent=NAMES[p]+' ['+['','头游','二游','三游','末游'][pos]+']';
+   nm.className='pi-name done';
+  } else {
+   nm.textContent=NAMES[p]+' '+cnt+'张';
+   nm.className='pi-name'+(S.turn===p?' active':'');
+  }
+ }
+
+ // Buttons
+ let bp=document.getElementById('bp'), bs=document.getElementById('bs');
+ if(S.turn===0 && !S.over && S.active!==false){
+  bp.disabled=false;
+  bs.disabled=!S.cp||S.cp.p===0;
+ } else {
+  bp.disabled=true;bs.disabled=true;
+ }
+
+ // Levels
+ document.getElementById('t0l').textContent=RO[Math.min(S.tl[0],RO.length-1)];
+ document.getElementById('t1l').textContent=RO[Math.min(S.tl[1],RO.length-1)];
+ document.getElementById('clv').textContent=S.lv;
+}
+
+// ========== Public API ==========
+window.G = {
+ newRound(){
+  document.getElementById('ov').classList.remove('show');
+  S.fo=[];S.cp=null;S.pc=0;S.sel.clear();S.active=true;S.over=false;
+  S.lv=RO[Math.min(Math.max(S.tl[0],S.tl[1]),RO.length-1)];
+  deal();
+  S.turn=S.fp;
+  clearPA();
+  render();
+  if(S.turn!==0) setTimeout(aiTurn,600);
+ },
+ sortHand(){
+  S.h[0].sort((a,b)=>csv(a)-csv(b));
+  S.sel.clear();
+  render();
+ },
+ hint(){
+  if(S.turn!==0) return;
+  let free=!S.cp||S.cp.p===0;
+  let opts=findOptions(S.h[0], free?null:S.cp.ht);
+  if(!opts.length){showMsg('没有可出的牌',1200);return;}
+  opts.sort((a,b)=>{
+   let ab=a.ht.t==='B'||a.ht.t==='FS'||a.ht.t==='R'?1:0;
+   let bb=b.ht.t==='B'||b.ht.t==='FS'||b.ht.t==='R'?1:0;
+   return ab-bb||a.ht.r-b.ht.r;
+  });
+  S.sel.clear();
+  for(let c of opts[0].cards) S.sel.add(c.id);
+  render();
+ },
+ playSelected(){
+  let cards=Array.from(S.sel).map(id=>S.h[0].find(c=>c.id===id)).filter(Boolean);
+  if(!cards.length) return;
+  let ht=detect(cards);
+  if(!ht){showMsg('无效牌型！',1200);return;}
+  let free=!S.cp||S.cp.p===0;
+  if(!free && !beats(ht,S.cp.ht)){showMsg('打不过！',1200);return;}
+  execPlay(0,cards,ht);
+ },
+ passPlay(){
+  if(!S.cp||S.cp.p===0) return;
+  execPass(0);
+ }
+};
+
+// Init
+S.fp=Math.floor(Math.random()*4);
+G.newRound();
+})();
+</script>
+</body>
+</html>
